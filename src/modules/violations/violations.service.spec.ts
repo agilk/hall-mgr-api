@@ -27,7 +27,7 @@ describe('ViolationsService', () => {
     assignmentId: 'assignment-uuid-1',
     participantName: 'John Student',
     participantId: 'STU123',
-    violationType: 'cheating',
+    type: ViolationType.CHEATING,
     description: 'Caught using unauthorized materials',
     severity: ViolationSeverity.HIGH,
     occurredAt: new Date(),

@@ -8,6 +8,7 @@ export const createMockRepository = <T = any>(): MockType<Repository<T>> => ({
   find: jest.fn(),
   findOne: jest.fn(),
   findOneBy: jest.fn(),
+  findBy: jest.fn(),
   findAndCount: jest.fn(),
   save: jest.fn(),
   create: jest.fn(),

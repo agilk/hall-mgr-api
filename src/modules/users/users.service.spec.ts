@@ -305,7 +305,6 @@ describe('UsersService', () => {
     it('should throw ConflictException if email is taken', async () => {
       userRepository.findOne
         .mockResolvedValueOnce(mockUser)
-        .mockResolvedValueOnce(null)
         .mockResolvedValueOnce({ ...mockUser, id: 2 });
 
       await expect(
@@ -324,12 +323,12 @@ describe('UsersService', () => {
     });
 
     it('should update building relationships if provided', async () => {
-      const buildings = [{ id: 1 }, { id: 2 }];
+      const buildings = [{ id: '1' }, { id: '2' }];
       userRepository.findOne.mockResolvedValue(mockUser);
       buildingRepository.findBy.mockResolvedValue(buildings);
       userRepository.save.mockResolvedValue(mockUser as User);
 
-      await service.update(1, { preferredBuildingIds: [1, 2] });
+      await service.update(1, { preferredBuildingIds: ['1', '2'] });
 
       expect(buildingRepository.findBy).toHaveBeenCalledWith({
         id: expect.anything(),

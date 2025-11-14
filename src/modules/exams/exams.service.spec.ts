@@ -17,7 +17,7 @@ describe('ExamsService', () => {
     id: 'exam-uuid-1',
     name: 'Midterm Exam',
     description: 'Mathematics midterm',
-    examDate: '2024-03-15',
+    examDate: new Date('2024-03-15'),
     startTime: '2024-03-15T09:00:00',
     endTime: '2024-03-15T11:00:00',
     status: ExamStatus.SCHEDULED,
@@ -54,7 +54,7 @@ describe('ExamsService', () => {
     const createExamDto = {
       name: 'Final Exam',
       description: 'Physics final',
-      examDate: new Date('2024-05-20'),
+      examDate: '2024-05-20',
       startTime: '2024-05-20T14:00:00',
       endTime: '2024-05-20T16:00:00',
     };

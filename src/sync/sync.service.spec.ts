@@ -27,7 +27,7 @@ describe('SyncService', () => {
   let dataSource: MockType<DataSource>;
 
   const mockExternalHall = {
-    id: 'ext-hall-1',
+    id: 1,
     uid: 'HALL-UID-1',
     name: 'External Hall 1',
     address: '123 External St',
@@ -36,7 +36,7 @@ describe('SyncService', () => {
     isActive: 1,
     rooms: [
       {
-        id: 'ext-room-1',
+        id: 1,
         name: 'Room A',
         capacity: 30,
         isActive: 1,
@@ -46,7 +46,7 @@ describe('SyncService', () => {
 
   const mockBuilding: Partial<Building> = {
     id: 'building-uuid-1',
-    externalId: 'ext-hall-1',
+    externalId: 1,
     externalUid: 'HALL-UID-1',
     name: 'External Hall 1',
     address: '123 External St',
@@ -192,23 +192,35 @@ describe('SyncService', () => {
   describe('syncParticipantsForDate', () => {
     const examDate = '2024-03-15';
 
-    const mockParticipant = {
-      id: 'ext-participant-1',
-      examDate: examDate,
-      roomId: 'ext-room-1',
-      participantName: 'John Student',
-      participantId: 'STU123',
-      seatNumber: '15',
-    };
+    const mockParticipantData = [
+      {
+        startTime: '09:00:00',
+        endTime: '11:00:00',
+        participants: [
+          {
+            hallId: 1,
+            roomId: 1,
+            participantName: 'John Student',
+            participantId: 'STU123',
+            seatNumber: '15',
+          },
+        ],
+      },
+    ];
 
     it('should sync participants successfully', async () => {
       const mockQueryRunner = dataSource.createQueryRunner();
+      const mockBuilding = { id: 'building-uuid-1' };
+      const mockRoom = { id: 'room-uuid-1' };
 
       syncLogRepository.create.mockReturnValue(mockSyncLog as SyncLog);
       syncLogRepository.save.mockResolvedValue(mockSyncLog as SyncLog);
-      externalHallApi.getRoomParticipants.mockResolvedValue([mockParticipant]);
+      externalHallApi.getRoomParticipants.mockResolvedValue(mockParticipantData);
 
-      mockQueryRunner.manager.findOne.mockResolvedValue(null);
+      mockQueryRunner.manager.findOne
+        .mockResolvedValueOnce(mockBuilding)
+        .mockResolvedValueOnce(mockRoom)
+        .mockResolvedValueOnce(null);
       mockQueryRunner.manager.create.mockReturnValue({} as Participant);
       mockQueryRunner.manager.save.mockResolvedValue({} as Participant);
 
@@ -238,27 +250,31 @@ describe('SyncService', () => {
   });
 
   describe('getSyncStatus', () => {
-    it('should return sync status with recent logs', async () => {
-      const recentLogs = [
-        {
-          ...mockSyncLog,
-          status: SyncStatus.COMPLETED,
-          completedAt: new Date(),
-        },
-      ];
+    it('should return sync status with last sync logs', async () => {
+      const lastHallsSync = {
+        ...mockSyncLog,
+        syncType: SyncType.EXAM_HALLS,
+        status: SyncStatus.COMPLETED,
+        completedAt: new Date(),
+      };
 
-      syncLogRepository.find.mockResolvedValue(recentLogs);
-      buildingRepository.count.mockResolvedValue(10);
-      roomRepository.count.mockResolvedValue(50);
-      participantRepository.count.mockResolvedValue(1000);
+      const lastParticipantsSync = {
+        ...mockSyncLog,
+        syncType: SyncType.PARTICIPANTS,
+        status: SyncStatus.COMPLETED,
+        completedAt: new Date(),
+      };
+
+      syncLogRepository.findOne
+        .mockResolvedValueOnce(lastHallsSync)
+        .mockResolvedValueOnce(lastParticipantsSync);
 
       const result = await service.getSyncStatus();
 
-      expect(result).toHaveProperty('recentSyncs');
-      expect(result).toHaveProperty('statistics');
-      expect(result.statistics.buildings).toBe(10);
-      expect(result.statistics.rooms).toBe(50);
-      expect(result.statistics.participants).toBe(1000);
+      expect(result).toHaveProperty('examHalls');
+      expect(result).toHaveProperty('participants');
+      expect(result.examHalls).toEqual(lastHallsSync);
+      expect(result.participants).toEqual(lastParticipantsSync);
     });
   });
 });

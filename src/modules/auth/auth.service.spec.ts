@@ -115,6 +115,7 @@ describe('AuthService', () => {
     const loginDto = {
       username: 'testuser',
       password: 'password123',
+      roleUid: 'supervisor-role-uid',
     };
 
     it('should login successfully without 2FA', async () => {
@@ -129,7 +130,7 @@ describe('AuthService', () => {
       expect(result).toHaveProperty('accessToken');
       expect(result).toHaveProperty('refreshToken');
       expect(result).toHaveProperty('user');
-      expect(result.requiresMfa).toBeUndefined();
+      expect('requiresMfa' in result).toBe(false);
     });
 
     it('should require 2FA if enabled', async () => {
@@ -138,7 +139,7 @@ describe('AuthService', () => {
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       (jwtService.sign as jest.Mock).mockReturnValue('temp-token');
 
-      const result = await service.login(loginDto);
+      const result = await service.login(loginDto) as any;
 
       expect(result.requiresMfa).toBe(true);
       expect(result.tempToken).toBe('temp-token');
