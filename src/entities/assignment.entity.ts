@@ -7,6 +7,7 @@ import {
   ManyToOne,
   OneToMany,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { User } from './user.entity';
 import { Room } from './room.entity';
@@ -23,6 +24,9 @@ export enum AssignmentStatus {
 }
 
 @Entity('assignments')
+@Index(['supervisorId', 'status']) // Optimize queries by supervisor and status
+@Index(['examId', 'roomId'], { unique: true }) // Ensure one assignment per room per exam
+@Index(['status', 'createdAt']) // Optimize listing by status and date
 export class Assignment {
   @PrimaryGeneratedColumn('uuid')
   id: string;

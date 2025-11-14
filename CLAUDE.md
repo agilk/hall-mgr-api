@@ -166,6 +166,66 @@ src/modules/documents/
 src/modules/audit-logs/
 ```
 
+#### 5. TypeORM Optimizations ✅ FULLY IMPLEMENTED
+**Status**: Production-ready
+
+Complete TypeORM optimization implementation with migrations, transaction patterns, and query optimizations:
+
+**Implementation Details:**
+
+**A. Migration System**
+- Created `src/data-source.ts` for TypeORM CLI configuration
+- Added migration scripts to package.json:
+  - `npm run migration:generate` - Generate migrations from entity changes
+  - `npm run migration:create` - Create empty migration
+  - `npm run migration:run` - Run pending migrations
+  - `npm run migration:revert` - Rollback last migration
+  - `npm run migration:show` - Show migration status
+- Updated app.module.ts to use migrations in production
+- Added `DB_SYNCHRONIZE` environment variable for controlled schema sync
+
+**B. Transaction Management**
+- Created `TransactionUtil` class for clean transaction handling
+- Methods:
+  - `runInTransaction()` - Execute work within a transaction
+  - `runWithQueryRunner()` - Use existing query runner
+  - `savepoint()` - Create savepoints for partial rollbacks
+- Updated SyncService to use TransactionUtil
+- Created `@Transactional()` decorator for controller methods
+- Created `TransactionInterceptor` for automatic transaction wrapping
+
+**C. Query Optimizations**
+- Added database indexes to frequently queried entities:
+  - Assignment: Composite indexes on (supervisor_id, status), (exam_id, room_id), (status, created_at)
+  - Attendance: Composite indexes on (exam_id, room_id), (participant_name), (status, exam_id)
+- Optimized service methods to avoid N+1 queries:
+  - Use `repository.update()` for simple field updates instead of loading full entity
+  - Reduced duplicate queries in update operations
+- Created comprehensive query optimization guide
+
+**Configuration:**
+```bash
+# Database Configuration
+DB_SYNCHRONIZE=false  # Use migrations instead of auto-sync
+```
+
+**Files:**
+```
+src/data-source.ts
+src/migrations/README.md
+src/common/utils/transaction.util.ts
+src/common/decorators/transactional.decorator.ts
+src/common/interceptors/transaction.interceptor.ts
+QUERY_OPTIMIZATION_GUIDE.md
+```
+
+**Migration Workflow:**
+1. Development: Set `DB_SYNCHRONIZE=true` or `NODE_ENV=development`
+2. Make entity changes
+3. Generate migration: `npm run migration:generate -- src/migrations/DescriptiveName`
+4. Review and commit migration
+5. Production: Run `npm run migration:run` before app startup
+
 ### ⏳ Pending Features
 
 #### Advanced Features
@@ -238,7 +298,8 @@ src/modules/audit-logs/
 5. **FRONTEND_TECHNICAL_SPEC.md** - Frontend architecture and components
 6. **DATA_SYNCHRONIZATION_STRATEGY.md** - Synchronization architecture and implementation
 7. **IMPLEMENTATION_ROADMAP.md** - Development phases and timeline
-8. **CLAUDE.md** - This file - project status and Claude context
+8. **QUERY_OPTIMIZATION_GUIDE.md** - TypeORM query optimization best practices
+9. **CLAUDE.md** - This file - project status and Claude context
 
 ## Development Guide
 
@@ -258,77 +319,105 @@ src/modules/audit-logs/
 npm run build
 ```
 
-### Database Synchronization
+### Database Migrations
 
-The application uses TypeORM with `synchronize: true` in development, which automatically creates/updates database tables based on entities.
+The application uses TypeORM migrations for production deployments. In development, you can optionally use `DB_SYNCHRONIZE=true` for rapid prototyping.
 
-For production, migrations should be used:
+**Migration Commands:**
 ```bash
-npm run migration:generate
+# Generate migration from entity changes
+npm run migration:generate -- src/migrations/DescriptiveName
+
+# Create empty migration
+npm run migration:create -- src/migrations/MigrationName
+
+# Run pending migrations
 npm run migration:run
+
+# Revert last migration
+npm run migration:revert
+
+# Show migration status
+npm run migration:show
 ```
+
+See `src/migrations/README.md` for detailed migration workflow.
 
 ## Recent Changes
 
 ### Latest Update (Current Session)
 **Date**: 2025-11-14
 
-**Implemented: All Core Feature Modules**
+**Implemented: TypeORM Optimizations - Migrations, Transactions & Query Performance**
 
-Completed implementation of all core feature modules with full CRUD operations:
+Completed comprehensive TypeORM optimizations for production-ready performance:
 
-**Modules Implemented:**
-- Users module with role management and building preferences
-- Buildings module with soft delete support
-- Halls module with building relationships
-- Rooms module with hall and building relationships
-- Exams module with scheduling and status management
-- Assignments module with complete workflow (pending, accepted, rejected, confirmed, completed)
-- Attendance module for participant attendance tracking
-- Violations module for exam rule violation reporting and resolution
-- Feedback module with tree structure for replies
-- Notifications module for system notifications
-- Documents module for file metadata management
-- Audit Logs module for complete audit trail
+**A. Migration System:**
+- Created `src/data-source.ts` for TypeORM CLI
+- Added 5 migration scripts to package.json (generate, create, run, revert, show)
+- Updated app.module.ts to support both dev sync and production migrations
+- Added `DB_SYNCHRONIZE` environment variable
+- Created comprehensive migration workflow documentation
+
+**B. Transaction Patterns:**
+- Created `TransactionUtil` class with 3 methods:
+  - `runInTransaction()` - Main transaction wrapper
+  - `runWithQueryRunner()` - Nested transaction support
+  - `savepoint()` - Partial rollback capability
+- Refactored SyncService to use TransactionUtil (cleaner, more maintainable)
+- Created `@Transactional()` decorator for controller methods
+- Created `TransactionInterceptor` for automatic transaction handling
+
+**C. Query Optimizations:**
+- Added database indexes to Assignment entity (3 indexes)
+- Added database indexes to Attendance entity (3 indexes)
+- Optimized AssignmentsService:
+  - `updateStatus()` - Use update() instead of double load
+  - `recordArrival()` - Direct update, single load
+  - `recordDeparture()` - Direct update, single load
+- Optimized AttendanceService:
+  - `markStatus()` - Use update() instead of double load
+- Created `QUERY_OPTIMIZATION_GUIDE.md` with comprehensive best practices
 
 **Changes:**
 ```
 Created:
-- src/modules/users/ (service, controller, module, DTOs)
-- src/modules/buildings/ (service, controller, module, DTOs)
-- src/modules/halls/ (service, controller, module, DTOs)
-- src/modules/rooms/ (service, controller, module, DTOs)
-- src/modules/exams/ (service, controller, module, DTOs)
-- src/modules/assignments/ (service, controller, module, DTOs)
-- src/modules/attendance/ (service, controller, module, DTOs)
-- src/modules/violations/ (service, controller, module, DTOs)
-- src/modules/feedback/ (service, controller, module, DTOs)
-- src/modules/notifications/ (service, controller, module, DTOs)
-- src/modules/documents/ (service, controller, module, DTOs)
-- src/modules/audit-logs/ (service, controller, module, DTOs)
+- src/data-source.ts
+- src/migrations/README.md
+- src/common/utils/transaction.util.ts
+- src/common/decorators/transactional.decorator.ts
+- src/common/interceptors/transaction.interceptor.ts
+- QUERY_OPTIMIZATION_GUIDE.md
 
 Modified:
-- src/app.module.ts (imported all core modules)
+- package.json (added 5 migration scripts)
+- .env.example (added DB_SYNCHRONIZE)
+- src/app.module.ts (migration support)
+- src/sync/sync.service.ts (use TransactionUtil)
+- src/modules/assignments/assignments.service.ts (query optimizations)
+- src/modules/attendance/attendance.service.ts (query optimizations)
+- src/entities/assignment.entity.ts (added indexes)
+- src/entities/attendance.entity.ts (added indexes)
 
 Documentation Updated:
-- CLAUDE.md (marked core modules as completed)
+- CLAUDE.md (added TypeORM Optimizations section)
 ```
 
-**Commits:**
-- (Pending) Implement all core feature modules
+**Performance Improvements:**
+- Reduced N+1 queries in update operations (3 queries → 2 queries)
+- Added composite indexes for common query patterns
+- Cleaner transaction management with TransactionUtil
+- Production-ready migration workflow
 
-### Previous Update (Authentication Module)
+**Commits:**
+- (Pending) Add TypeORM optimizations: migrations, transactions, and query performance
+
+### Previous Update (Core Feature Modules)
 **Date**: 2025-11-14
 
-**Implemented: Daily Data Synchronization**
+**Implemented: All Core Feature Modules**
 
-Added complete data synchronization system for external exam management integration:
-- Created Participant and SyncLog entities
-- Updated Building and Room entities with sync metadata
-- Implemented ExternalHallApiService for API integration
-- Created SyncService with automated scheduling
-- Added manual trigger endpoints
-- Configured daily sync jobs (2 AM for halls/rooms, 3 AM for participants)
+Completed implementation of all core feature modules with full CRUD operations for Users, Buildings, Halls, Rooms, Exams, Assignments, Attendance, Violations, Feedback, Notifications, Documents, and Audit Logs modules.
 
 ## Next Steps
 
@@ -371,6 +460,9 @@ Added complete data synchronization system for external exam management integrat
 3. **Synchronization**: The sync system is in `src/sync/` and is production-ready
 4. **Environment**: All configuration uses environment variables from `.env`
 5. **Documentation**: Keep all `.md` files updated when making changes
+6. **Migrations**: Use migrations for schema changes, never use `synchronize: true` in production
+7. **Transactions**: Use `TransactionUtil` from `src/common/utils/transaction.util.ts`
+8. **Query Optimization**: Follow patterns in `QUERY_OPTIMIZATION_GUIDE.md`
 
 ### Code Style:
 - Use NestJS best practices
@@ -378,6 +470,9 @@ Added complete data synchronization system for external exam management integrat
 - Use DTOs for request/response validation
 - Implement proper error handling
 - Add logging for critical operations
+- Use `repository.update()` for simple field updates (avoid loading full entity)
+- Add indexes to frequently queried columns
+- Use `TransactionUtil.runInTransaction()` for multi-step operations
 
 ### Testing:
 - Unit tests: `*.spec.ts` files alongside source
@@ -389,6 +484,9 @@ Added complete data synchronization system for external exam management integrat
 - Always use transactions for multi-step database operations
 - Validate all external API responses
 - Handle external API failures gracefully
+- Never use `synchronize: true` in production
+- Always add indexes to foreign keys and frequently queried columns
+- Avoid N+1 queries - load relations explicitly or use update() for simple changes
 
 ## References
 

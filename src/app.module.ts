@@ -40,7 +40,10 @@ import { LoggerService } from './common/services/logger.service';
         password: process.env.DB_PASSWORD,
         database: process.env.DB_DATABASE,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: process.env.NODE_ENV === 'development',
+        migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
+        // Only use synchronize in development - use migrations in production
+        synchronize: process.env.DB_SYNCHRONIZE === 'true' || process.env.NODE_ENV === 'development',
+        migrationsRun: process.env.NODE_ENV === 'production',
         logging: process.env.NODE_ENV === 'development',
       }),
     }),

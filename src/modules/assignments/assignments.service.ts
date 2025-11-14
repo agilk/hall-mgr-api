@@ -199,15 +199,17 @@ export class AssignmentsService {
   }
 
   async updateStatus(id: string, status: AssignmentStatus): Promise<Assignment> {
-    const assignment = await this.findOne(id);
-    assignment.status = status;
+    // Optimize: Use update() instead of save() to avoid loading the entity
+    const result = await this.assignmentRepository.update(id, { status });
 
-    const updatedAssignment = await this.assignmentRepository.save(assignment);
-    this.logger.log(
-      `Assignment ${id} status changed to: ${updatedAssignment.status}`,
-    );
+    if (result.affected === 0) {
+      throw new NotFoundException(`Assignment with ID ${id} not found`);
+    }
 
-    return this.findOne(updatedAssignment.id);
+    this.logger.log(`Assignment ${id} status changed to: ${status}`);
+
+    // Only load once after update
+    return this.findOne(id);
   }
 
   async acceptAssignment(id: string): Promise<Assignment> {
@@ -231,22 +233,34 @@ export class AssignmentsService {
   }
 
   async recordArrival(id: string): Promise<Assignment> {
-    const assignment = await this.findOne(id);
-    assignment.arrivalTime = new Date();
+    // Optimize: Use update() instead of loading the full entity
+    const result = await this.assignmentRepository.update(id, {
+      arrivalTime: new Date(),
+    });
 
-    const updatedAssignment = await this.assignmentRepository.save(assignment);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Assignment with ID ${id} not found`);
+    }
+
     this.logger.log(`Assignment ${id} arrival time recorded`);
 
-    return this.findOne(updatedAssignment.id);
+    // Only load once after update
+    return this.findOne(id);
   }
 
   async recordDeparture(id: string): Promise<Assignment> {
-    const assignment = await this.findOne(id);
-    assignment.departureTime = new Date();
+    // Optimize: Use update() instead of loading the full entity
+    const result = await this.assignmentRepository.update(id, {
+      departureTime: new Date(),
+    });
 
-    const updatedAssignment = await this.assignmentRepository.save(assignment);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Assignment with ID ${id} not found`);
+    }
+
     this.logger.log(`Assignment ${id} departure time recorded`);
 
-    return this.findOne(updatedAssignment.id);
+    // Only load once after update
+    return this.findOne(id);
   }
 }
