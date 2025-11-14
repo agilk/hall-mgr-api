@@ -1,9 +1,13 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SyncModule } from './sync/sync.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { AllExceptionsFilter } from './common/filters/http-exception.filter';
+import { LoggerService } from './common/services/logger.service';
 
 @Module({
   imports: [
@@ -29,9 +33,17 @@ import { SyncModule } from './sync/sync.module';
     }),
 
     // Feature modules
+    AuthModule,
     SyncModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [
+    AppService,
+    LoggerService,
+    {
+      provide: APP_FILTER,
+      useClass: AllExceptionsFilter,
+    },
+  ],
 })
 export class AppModule {}

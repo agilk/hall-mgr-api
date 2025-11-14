@@ -28,35 +28,53 @@ export enum UserStatus {
 
 @Entity('users')
 export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'uuid', unique: true, generated: 'uuid' })
+  uid: string;
 
   @Column({ unique: true })
   email: string;
 
-  @Column({ unique: true, nullable: true })
+  @Column({ unique: true })
   username: string;
 
-  @Column({ nullable: true })
+  @Column({ select: false }) // Don't select password by default
+  password: string;
+
+  @Column({ name: 'full_name' })
+  fullName: string;
+
+  @Column({ unique: true })
   phone: string;
 
-  @Column({ name: 'external_auth_id', unique: true })
+  @Column({ name: 'external_auth_id', unique: true, nullable: true })
   externalAuthId: string; // ID from external auth service
 
-  @Column({ name: 'first_name' })
+  @Column({ name: 'external_user_id', nullable: true })
+  externalUserId: string; // User ID from external auth service
+
+  @Column({ name: 'first_name', nullable: true })
   firstName: string;
 
-  @Column({ name: 'last_name' })
+  @Column({ name: 'last_name', nullable: true })
   lastName: string;
 
-  @Column({ name: 'father_name', nullable: true })
-  fatherName: string;
+  @Column({ name: 'middle_name', nullable: true })
+  middleName: string;
+
+  @Column({ name: 'personal_id', nullable: true })
+  personalId: string;
+
+  @Column({ name: 'gender', nullable: true })
+  gender: string;
 
   @Column({ type: 'date', nullable: true })
-  dateOfBirth: Date;
+  birthday: Date;
 
   @Column({ name: 'profile_photo_url', nullable: true })
-  profilePhotoUrl: string;
+  profilePhoto: string;
 
   @Column({ nullable: true })
   institution: string;
@@ -68,25 +86,22 @@ export class User {
   contactDetails: string;
 
   @Column({
-    type: 'enum',
-    enum: UserRole,
-    array: true,
-    default: [UserRole.SUPERVISOR],
+    type: 'simple-array',
+    default: 'supervisor',
   })
-  roles: UserRole[];
+  roles: string[];
 
-  @Column({
-    type: 'enum',
-    enum: UserStatus,
-    default: UserStatus.PENDING_APPROVAL,
-  })
-  status: UserStatus;
+  @Column({ name: 'is_active', default: false })
+  isActive: boolean;
 
-  @Column({ name: 'two_factor_enabled', default: false })
-  twoFactorEnabled: boolean;
+  @Column({ name: 'is_approved', default: false })
+  isApproved: boolean;
 
-  @Column({ name: 'two_factor_secret', nullable: true })
-  twoFactorSecret: string;
+  @Column({ name: 'mfa_enabled', default: false })
+  mfaEnabled: boolean;
+
+  @Column({ name: 'mfa_secret', nullable: true, select: false })
+  mfaSecret: string;
 
   @ManyToMany(() => Building)
   @JoinTable({
