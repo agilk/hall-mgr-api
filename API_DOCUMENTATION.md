@@ -1,522 +1,669 @@
-# Exam Supervision System - API Documentation
+# API Documentation for Frontend Developers
+
+Base URL: `/api`
 
 ## Table of Contents
-1. [External Authorization Service](#external-authorization-service)
-2. [System API Endpoints](#system-api-endpoints)
-3. [Authentication Flow](#authentication-flow)
-4. [Role-Based Access Control](#role-based-access-control)
+1. [MQM App Authentication](#mqm-app-authentication)
+2. [User Management](#user-management)
+3. [Error Codes Reference](#error-codes-reference)
 
 ---
 
-## External Authorization Service
+## MQM App Authentication
 
-This system integrates with an external authorization service for user authentication and authorization. The service URL is configured in the `.env` file under `AUTH_SERVICE_URL`.
+Base path: `/api/mqm-app-auth`
 
-### Configuration
+### 1. Login
+**Endpoint:** `POST /api/mqm-app-auth/login`
 
-```env
-AUTH_SERVICE_URL=https://auth.example.com/api
-AUTH_SERVICE_API_KEY=your-auth-service-api-key
-```
-
-### Authorization Service API Endpoints
-
-#### 1. User Registration
-**Endpoint:** `POST /auth/register`
-
-**Headers:**
-```
-Content-Type: application/json
-X-API-Key: {AUTH_SERVICE_API_KEY}
-```
+**Description:** Authenticates a user with username, password, and role. If the user has MFA enabled, returns a temporary token for MFA verification.
 
 **Request Body:**
 ```json
 {
-  "email": "user@example.com",
-  "username": "johndoe",
-  "password": "SecurePassword123!",
-  "phone": "+1234567890",
-  "profile": {
-    "firstName": "John",
-    "lastName": "Doe",
-    "fatherName": "Michael",
-    "dateOfBirth": "1990-01-15",
-    "institution": "University XYZ",
-    "specialty": "Computer Science",
-    "contactDetails": "john@example.com"
+  "username": "string (required)",
+  "password": "string (required)",
+  "roleUid": "string (required)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "accessToken": "string",
+  "refreshToken": "string",
+  "accessExpires": "string (e.g., '30m')",
+  "refreshExpires": "string (e.g., '240h')",
+  "user": {
+    "id": "number",
+    "uid": "string",
+    "username": "string",
+    "fullName": "string",
+    "email": "string",
+    "phone": "string",
+    "mfaEnabled": "boolean"
   }
 }
 ```
 
-**Response:**
+**Error Response (401):**
 ```json
 {
-  "success": true,
-  "data": {
-    "userId": "uuid-user-id",
-    "email": "user@example.com",
-    "username": "johndoe",
-    "requiresTwoFactor": false,
-    "createdAt": "2025-01-15T10:30:00Z"
-  }
+  "errno": "number",
+  "code": "string"
 }
 ```
 
 ---
 
-#### 2. User Login
-**Endpoint:** `POST /auth/login`
+### 2. MFA Setup
+**Endpoint:** `POST /api/mqm-app-auth/mfa-setup`
+
+**Description:** Sets up Multi-Factor Authentication for a user account.
 
 **Headers:**
 ```
-Content-Type: application/json
-X-API-Key: {AUTH_SERVICE_API_KEY}
+Authorization: Bearer <temp_token>
 ```
 
 **Request Body:**
 ```json
 {
-  "identifier": "user@example.com",
-  "password": "SecurePassword123!"
+  "otp": "string (required, 6-digit code)"
 }
 ```
 
-**Response (Without 2FA):**
+**Success Response (200):**
 ```json
 {
-  "success": true,
-  "data": {
-    "accessToken": "jwt-access-token",
-    "refreshToken": "jwt-refresh-token",
-    "expiresIn": 86400,
-    "user": {
-      "userId": "uuid-user-id",
-      "email": "user@example.com",
-      "username": "johndoe",
-      "roles": ["supervisor"]
-    }
+  "accessToken": "string",
+  "refreshToken": "string",
+  "accessExpires": "string",
+  "refreshExpires": "string",
+  "user": {
+    "id": "number",
+    "uid": "string",
+    "username": "string",
+    "mfaEnabled": "boolean"
   }
 }
 ```
 
-**Response (With 2FA Enabled):**
+**Error Response (403):**
+- Invalid OTP or authentication failure
+
+---
+
+### 3. MFA Verify
+**Endpoint:** `POST /api/mqm-app-auth/mfa-verify`
+
+**Description:** Verifies the MFA code during login process.
+
+**Headers:**
+```
+Authorization: Bearer <temp_token>
+```
+
+**Request Body:**
 ```json
 {
-  "success": true,
-  "requiresTwoFactor": true,
+  "otp": "string (required, 6-digit code)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "accessToken": "string",
+  "refreshToken": "string",
+  "accessExpires": "string",
+  "refreshExpires": "string",
+  "user": {
+    "id": "number",
+    "uid": "string",
+    "username": "string",
+    "mfaEnabled": "boolean"
+  }
+}
+```
+
+**Error Response (403):**
+- Invalid OTP or authentication failure
+
+---
+
+## User Management
+
+Base path: `/api/users`
+
+### 4. Create User
+**Endpoint:** `POST /api/users/`
+
+**Description:** Registers a new user account. An OTP will be sent to the provided phone number for activation.
+
+**Request Body:**
+```json
+{
+  "username": "string (required)",
+  "fullName": "string (required)",
+  "password": "string (required)",
+  "phone": "string (required)",
+  "email": "string (optional)",
+  "firstName": "string (optional)",
+  "middleName": "string (optional)",
+  "lastName": "string (optional)",
+  "personalId": "string (optional)",
+  "gender": "string (optional)",
+  "birthday": "string (optional, ISO date)",
+  "referralId": "string (optional)",
+  "noSms": "boolean (optional, default: false)"
+}
+```
+
+**Success Response (200):**
+```json
+{
   "data": {
-    "tempToken": "temporary-token-for-2fa",
-    "expiresIn": 300
+    "id": "number",
+    "uid": "string",
+    "username": "string",
+    "createdAt": "string (ISO date)"
+  }
+}
+```
+
+**Error Responses:**
+- **500** - User already exists (active)
+```json
+{
+  "error": {
+    "errno": -107,
+    "code": "USER_EXISTS_ACTIVE",
+    "isLocked": "boolean"
+  }
+}
+```
+- **500** - User already exists (inactive)
+```json
+{
+  "error": {
+    "errno": -108,
+    "code": "USER_EXISTS_INACTIVE",
+    "isLocked": "boolean"
+  }
+}
+```
+- **500** - SMS center not working
+```json
+{
+  "error": {
+    "errno": -119,
+    "code": "SMSC_NOT_WORKING",
+    "deliver": "object"
   }
 }
 ```
 
 ---
 
-#### 3. Verify 2FA Token
-**Endpoint:** `POST /auth/verify-2fa`
+### 5. Activate User
+**Endpoint:** `POST /api/users/activate`
 
-**Headers:**
-```
-Content-Type: application/json
-X-API-Key: {AUTH_SERVICE_API_KEY}
-```
+**Description:** Activates a newly registered user account using the OTP sent to their phone.
 
 **Request Body:**
 ```json
 {
-  "tempToken": "temporary-token-from-login",
-  "totpCode": "123456"
+  "phone": "string (required)",
+  "otp": "string (required, 6-digit code)",
+  "isActive": "boolean (optional)"
 }
 ```
 
-**Response:**
+**Success Response (200):**
 ```json
 {
-  "success": true,
-  "data": {
-    "accessToken": "jwt-access-token",
-    "refreshToken": "jwt-refresh-token",
-    "expiresIn": 86400,
-    "user": {
-      "userId": "uuid-user-id",
-      "email": "user@example.com",
-      "username": "johndoe",
-      "roles": ["supervisor"]
-    }
+  "id": "number",
+  "uid": "string",
+  "username": "string",
+  "phone": "string",
+  "isActive": "boolean"
+}
+```
+
+**Error Responses:**
+- **404** - Cannot find user by OTP
+```json
+{
+  "error": {
+    "errno": -112,
+    "code": "CANNOT_FIND_USER_BY_OTP"
+  }
+}
+```
+- **403** - User already active
+```json
+{
+  "error": {
+    "errno": -115,
+    "code": "USER_ALREADY_ACTIVE"
   }
 }
 ```
 
 ---
 
-#### 4. Enable 2FA
-**Endpoint:** `POST /auth/enable-2fa`
+### 6. Reactivate User
+**Endpoint:** `POST /api/users/reactivate`
 
-**Headers:**
-```
-Content-Type: application/json
-Authorization: Bearer {accessToken}
-X-API-Key: {AUTH_SERVICE_API_KEY}
-```
+**Description:** Reactivates a deactivated user account with a new password.
 
 **Request Body:**
 ```json
 {
-  "userId": "uuid-user-id"
+  "phone": "string (required)",
+  "otp": "string (required, 6-digit code)",
+  "password": "string (required, new password)"
 }
 ```
 
-**Response:**
+**Success Response (200):**
 ```json
 {
-  "success": true,
-  "data": {
-    "secret": "base32-encoded-secret",
-    "qrCode": "data:image/png;base64,iVBORw0KGgo...",
-    "backupCodes": [
-      "12345678",
-      "87654321",
-      "11223344"
+  "id": "number",
+  "uid": "string",
+  "username": "string",
+  "phone": "string",
+  "isActive": "boolean"
+}
+```
+
+**Error Responses:**
+- **404** - Cannot find user by OTP
+```json
+{
+  "error": {
+    "errno": -112,
+    "code": "CANNOT_FIND_USER_BY_OTP"
+  }
+}
+```
+
+---
+
+### 7. Request OTP
+**Endpoint:** `POST /api/users/request-otp`
+
+**Description:** Requests a new OTP to be sent to the user's phone number.
+
+**Request Body:**
+```json
+{
+  "phone": "string (required)",
+  "isActive": "boolean (optional)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "data": "number (rows updated)"
+}
+```
+
+**Error Responses:**
+- **404** - User not found
+```json
+{
+  "error": {
+    "errno": -114,
+    "code": "CANNOT_FIND_USER"
+  }
+}
+```
+- **500** - Cannot send OTP
+```json
+{
+  "error": {
+    "errno": -116,
+    "code": "CANNOT_SEND_OTP"
+  }
+}
+```
+
+---
+
+### 8. Login
+**Endpoint:** `POST /api/users/login`
+
+**Description:** Authenticates a user and returns access and refresh tokens.
+
+**Request Body:**
+```json
+{
+  "username": "string (required)",
+  "password": "string (required)",
+  "asAdmin": "boolean (optional)"
+}
+```
+
+**Success Response (200):**
+```json
+{
+  "accessToken": "string",
+  "refreshToken": "string",
+  "accessExpires": "string (e.g., '30m')",
+  "refreshExpires": "string (e.g., '240h')",
+  "user": {
+    "id": "number",
+    "uid": "string",
+    "username": "string",
+    "fullName": "string",
+    "firstName": "string",
+    "middleName": "string",
+    "lastName": "string",
+    "phone": "string",
+    "email": "string",
+    "personalId": "string",
+    "gender": "string",
+    "birthday": "string",
+    "isActive": "boolean",
+    "isLocked": "boolean",
+    "hasAdminRights": "boolean",
+    "mfaEnabled": "boolean",
+    "roles": [
+      {
+        "id": "number",
+        "uid": "string",
+        "name": "string"
+      }
     ]
   }
 }
 ```
 
+**Error Responses:**
+- **400** - Empty login request
+```json
+{
+  "error": {
+    "errno": -102,
+    "code": "EMPTY_LOGIN_REQUEST"
+  }
+}
+```
+- **401** - Invalid username or password
+```json
+{
+  "error": {
+    "errno": -103,
+    "code": "INVALID_USERNAME_PASSWORD"
+  }
+}
+```
+- **401** - User locked (too many wrong attempts)
+```json
+{
+  "error": {
+    "errno": -109,
+    "code": "USER_LOCKED"
+  }
+}
+```
+- **401** - User inactive
+```json
+{
+  "error": {
+    "errno": -110,
+    "code": "USER_INACTIVE"
+  }
+}
+```
+
+**Note:** After 3 failed login attempts (configurable via `MAX_WRONG_COUNT`), the user account will be automatically locked.
+
 ---
 
-#### 5. Confirm 2FA Setup
-**Endpoint:** `POST /auth/confirm-2fa`
+## Authenticated User Endpoints
+
+These endpoints require authentication. Include the access token in the request header:
+```
+Authorization: Bearer <access_token>
+```
+
+### 9. Edit User Info
+**Endpoint:** `POST /api/users/user-edit-info`
+
+**Description:** Updates the authenticated user's profile information.
 
 **Headers:**
 ```
-Content-Type: application/json
-Authorization: Bearer {accessToken}
-X-API-Key: {AUTH_SERVICE_API_KEY}
+Authorization: Bearer <access_token>
 ```
 
 **Request Body:**
 ```json
 {
-  "userId": "uuid-user-id",
-  "secret": "base32-encoded-secret",
-  "totpCode": "123456"
+  "email": "string (optional)",
+  "firstName": "string (optional)",
+  "lastName": "string (optional)",
+  "middleName": "string (optional)",
+  "personalId": "string (optional)",
+  "gender": "string (optional)",
+  "birthday": "string (optional, ISO date)"
 }
 ```
 
-**Response:**
+**Success Response (200):**
 ```json
 {
-  "success": true,
-  "message": "2FA enabled successfully"
-}
-```
-
----
-
-#### 6. Validate Access Token
-**Endpoint:** `POST /auth/validate`
-
-**Headers:**
-```
-Content-Type: application/json
-X-API-Key: {AUTH_SERVICE_API_KEY}
-```
-
-**Request Body:**
-```json
-{
-  "accessToken": "jwt-access-token"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
   "data": {
-    "valid": true,
-    "user": {
-      "userId": "uuid-user-id",
-      "email": "user@example.com",
-      "username": "johndoe",
-      "roles": ["supervisor", "building_manager"]
-    },
-    "expiresAt": "2025-01-16T10:30:00Z"
+    "id": "number",
+    "uid": "string",
+    "username": "string",
+    "email": "string",
+    "firstName": "string",
+    "lastName": "string",
+    "middleName": "string",
+    "personalId": "string",
+    "gender": "string",
+    "birthday": "string"
   }
 }
 ```
 
+**Error Response (401):**
+- Unauthorized (invalid or missing token)
+
 ---
 
-#### 7. Refresh Access Token
-**Endpoint:** `POST /auth/refresh`
+### 10. Change Password
+**Endpoint:** `POST /api/users/change-password`
+
+**Description:** Changes the authenticated user's password. After successful password change, the user will be automatically logged in with new credentials.
 
 **Headers:**
 ```
-Content-Type: application/json
-X-API-Key: {AUTH_SERVICE_API_KEY}
+Authorization: Bearer <access_token>
 ```
 
 **Request Body:**
 ```json
 {
-  "refreshToken": "jwt-refresh-token"
+  "oldPassword": "string (required)",
+  "newPassword": "string (required)"
 }
 ```
 
-**Response:**
+**Success Response (200):**
 ```json
 {
-  "success": true,
+  "accessToken": "string",
+  "refreshToken": "string",
+  "accessExpires": "string",
+  "refreshExpires": "string",
+  "user": {
+    "id": "number",
+    "uid": "string",
+    "username": "string",
+    "fullName": "string",
+    "phone": "string",
+    "email": "string"
+  }
+}
+```
+
+**Error Responses:**
+- **400** - Empty login request
+```json
+{
+  "error": {
+    "errno": -102,
+    "code": "EMPTY_LOGIN_REQUEST"
+  }
+}
+```
+- **403** - Old password doesn't match
+```json
+{
+  "error": {
+    "errno": -106,
+    "code": "USER_PASSWORD_NOT_MATCH",
+    "username": "string"
+  }
+}
+```
+- **500** - Cannot change password
+```json
+{
+  "error": {
+    "errno": -105,
+    "code": "CANNOT_CHANGE_PASSWORD",
+    "username": "string"
+  }
+}
+```
+
+**Note:** All existing refresh tokens will be deactivated after password change.
+
+---
+
+### 11. Refresh Access Token
+**Endpoint:** `GET /api/users/token/access`
+
+**Description:** Generates a new access token and refresh token using a valid refresh token.
+
+**Headers:**
+```
+Authorization: Bearer <refresh_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "accessToken": "string",
+  "refreshToken": "string",
+  "accessExpires": "string (e.g., '30m')",
   "data": {
-    "accessToken": "new-jwt-access-token",
-    "refreshToken": "new-jwt-refresh-token",
-    "expiresIn": 86400
+    "accessToken": "string",
+    "refreshToken": "string",
+    "accessExpires": "string"
   }
 }
 ```
 
----
+**Error Response (403):**
+- Invalid or expired refresh token
 
-#### 8. Assign Role to User
-**Endpoint:** `POST /auth/roles/assign`
-
-**Headers:**
-```
-Content-Type: application/json
-Authorization: Bearer {adminAccessToken}
-X-API-Key: {AUTH_SERVICE_API_KEY}
-```
-
-**Request Body:**
-```json
-{
-  "userId": "uuid-user-id",
-  "role": "building_manager",
-  "metadata": {
-    "buildingId": "building-uuid"
-  }
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Role assigned successfully"
-}
-```
+**Note:**
+- The old refresh token will remain active
+- Use this endpoint before the access token expires to maintain user session
+- The refresh token has a longer lifetime (default: 240h / 10 days)
 
 ---
 
-#### 9. Revoke Role from User
-**Endpoint:** `POST /auth/roles/revoke`
+## Error Codes Reference
 
-**Headers:**
-```
-Content-Type: application/json
-Authorization: Bearer {adminAccessToken}
-X-API-Key: {AUTH_SERVICE_API_KEY}
-```
-
-**Request Body:**
-```json
-{
-  "userId": "uuid-user-id",
-  "role": "building_manager"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Role revoked successfully"
-}
-```
-
----
-
-#### 10. Logout
-**Endpoint:** `POST /auth/logout`
-
-**Headers:**
-```
-Content-Type: application/json
-Authorization: Bearer {accessToken}
-X-API-Key: {AUTH_SERVICE_API_KEY}
-```
-
-**Request Body:**
-```json
-{
-  "refreshToken": "jwt-refresh-token"
-}
-```
-
-**Response:**
-```json
-{
-  "success": true,
-  "message": "Logged out successfully"
-}
-```
+| Error Code | errno | Description |
+|------------|-------|-------------|
+| `CANNOT_CREATE` | -1 | Failed to create user in database |
+| `EMPTY_LOGIN_REQUEST` | -102 | Missing username or password |
+| `INVALID_USERNAME_PASSWORD` | -103 | Invalid credentials |
+| `USER_EXISTS_ACTIVE` | -107 | User already exists and is active |
+| `USER_EXISTS_INACTIVE` | -108 | User already exists but is inactive |
+| `USER_LOCKED` | -109 | User account is locked due to multiple failed login attempts |
+| `USER_INACTIVE` | -110 | User account is not activated |
+| `CANNOT_FIND_USER_BY_OTP` | -112 | Invalid or expired OTP |
+| `CANNOT_ACTIVATE_USER_BY_OTP` | -113 | Failed to activate user |
+| `CANNOT_FIND_USER` | -114 | User not found |
+| `USER_ALREADY_ACTIVE` | -115 | User is already activated |
+| `CANNOT_SEND_OTP` | -116 | Failed to send OTP |
+| `USER_PASSWORD_NOT_MATCH` | -106 | Old password is incorrect |
+| `CANNOT_CHANGE_PASSWORD` | -105 | Failed to change password |
+| `SMSC_NOT_WORKING` | -119 | SMS center is not responding |
+| `CANNOT_LOGIN` | -101 | Login process failed |
 
 ---
 
 ## Authentication Flow
 
-### 1. Registration Flow
-```
-User → POST /auth/register → Auth Service
-     ← User Created
-     ← requiresTwoFactor: false
-```
+### Standard Login Flow
+1. **POST** `/api/users/login` with username and password
+2. Receive `accessToken` and `refreshToken`
+3. Include `accessToken` in Authorization header for authenticated requests
+4. When `accessToken` expires, use `refreshToken` to get new tokens via **GET** `/api/users/token/access`
 
-### 2. Login Flow (Without 2FA)
-```
-User → POST /auth/login → Auth Service
-     ← accessToken, refreshToken
-```
+### Registration & Activation Flow
+1. **POST** `/api/users/` to create a new user account
+2. OTP is sent to the provided phone number
+3. **POST** `/api/users/activate` with phone and OTP to activate account
 
-### 3. Login Flow (With 2FA)
-```
-User → POST /auth/login → Auth Service
-     ← tempToken, requiresTwoFactor: true
+### Password Recovery Flow
+1. **POST** `/api/users/request-otp` with phone number
+2. OTP is sent to the phone
+3. **POST** `/api/users/reactivate` with phone, OTP, and new password
 
-User → POST /auth/verify-2fa (with TOTP code) → Auth Service
-     ← accessToken, refreshToken
-```
-
-### 4. Enable 2FA Flow
-```
-User → POST /auth/enable-2fa → Auth Service
-     ← secret, qrCode, backupCodes
-
-User → Scan QR Code with Google Authenticator
-     → Enter TOTP code
-
-User → POST /auth/confirm-2fa (with TOTP code) → Auth Service
-     ← 2FA enabled successfully
-```
+### MQM App Authentication Flow
+1. **POST** `/api/mqm-app-auth/login` with username, password, and roleUid
+2. If MFA is required:
+   - Receive temporary token
+   - **POST** `/api/mqm-app-auth/mfa-verify` with temp token and OTP
+3. Receive final `accessToken` and `refreshToken`
 
 ---
 
-## Role-Based Access Control
+## General Notes
 
-### Available Roles
+### Token Lifetimes
+- **Access Token:** 30 minutes (configurable via `ACCESS_TOKEN_LIFETIME`)
+- **Access Token (Admin):** 30 minutes (configurable via `ACCESS_TOKEN_LIFETIME_ADMIN`)
+- **Refresh Token:** 240 hours / 10 days (configurable via `REFRESH_TOKEN_LIFETIME`)
 
-1. **supervisor** - Exam supervisor/volunteer
-2. **building_manager** - Building manager
-3. **exam_director** - Exam director (admin)
+### OTP
+- **OTP Lifetime:** 310 seconds / ~5 minutes (configurable via `OTP_LIFETIME`)
+- **OTP Length:** 6 digits
 
-### Role Permissions
+### Security Features
+- **Account Locking:** After 3 failed login attempts (configurable via `MAX_WRONG_COUNT`), the account is automatically locked
+- **Password Hashing:** All passwords are hashed using bcrypt
+- **Token Invalidation:** All refresh tokens are invalidated when password is changed
 
-#### Supervisor Role
-- View own profile
-- Update own profile
-- View assignment offers
-- Accept/reject assignments
-- Log exam day activities (timestamps, attendance, violations)
-- Submit feedback
-- View own assignment history
+### Headers
+All authenticated requests must include:
+```
+Authorization: Bearer <access_token>
+```
 
-#### Building Manager Role
-- All supervisor permissions
-- Manage supervisors in assigned building(s)
-- Create/edit/delete room assignments
-- Mark rooms as "no supervisor needed"
-- View real-time monitoring for assigned building(s)
-- Receive and respond to supervisor feedback
-- View violation reports for assigned building(s)
-
-#### Exam Director Role
-- All building manager permissions (across all buildings)
-- Approve/deactivate supervisors
-- View system-wide statistics
-- Upload exam documents
-- Message supervisors
-- Access full audit logs
-- Manage buildings and halls
-
----
-
-## Error Responses
-
-All authorization service endpoints follow a consistent error format:
-
+### Response Format
+All error responses follow this format:
 ```json
 {
-  "success": false,
   "error": {
-    "code": "AUTH_ERROR_CODE",
-    "message": "Human readable error message",
-    "details": {
-      "field": "specific error details"
-    }
+    "errno": "number",
+    "code": "string",
+    "...additionalFields": "any"
   }
 }
 ```
 
-### Common Error Codes
-
-- `INVALID_CREDENTIALS` - Invalid username/email or password
-- `USER_NOT_FOUND` - User does not exist
-- `INVALID_TOKEN` - Access token is invalid or expired
-- `INVALID_2FA_CODE` - 2FA TOTP code is incorrect
-- `2FA_REQUIRED` - 2FA is enabled but code not provided
-- `INSUFFICIENT_PERMISSIONS` - User lacks required role/permission
-- `RATE_LIMIT_EXCEEDED` - Too many requests
-- `SERVICE_UNAVAILABLE` - Auth service is down
-
----
-
-## System API Endpoints
-
-Documentation for the Exam Supervision System's own API endpoints will be available via Swagger UI at `/api/docs` when the application is running.
-
-### Base URL
-```
-http://localhost:3000/api
-```
-
-### Swagger Documentation
-```
-http://localhost:3000/api/docs
-```
-
----
-
-## Integration Notes
-
-1. **API Key Authentication**: All requests to the authorization service must include the `X-API-Key` header with the configured API key from `.env`.
-
-2. **Token Storage**: Access tokens should be stored securely (e.g., HTTP-only cookies or secure storage). Refresh tokens should be stored separately.
-
-3. **Token Refresh**: Implement automatic token refresh when access tokens expire using the refresh token.
-
-4. **Role Synchronization**: User roles from the auth service should be synchronized with the local database for performance.
-
-5. **Error Handling**: Implement proper error handling for all auth service responses, including network errors and service unavailability.
-
-6. **Rate Limiting**: The auth service may implement rate limiting. Implement exponential backoff for retries.
-
-7. **Audit Logging**: All authentication and authorization events should be logged in the audit log.
-
----
-
-## Security Considerations
-
-1. **HTTPS Only**: The authorization service should only be accessed over HTTPS in production.
-
-2. **API Key Protection**: The `AUTH_SERVICE_API_KEY` must be kept secret and never exposed to clients.
-
-3. **Token Validation**: Always validate tokens with the auth service before granting access to protected resources.
-
-4. **2FA Enforcement**: 2FA should be mandatory for building managers and exam directors.
-
-5. **Session Management**: Implement proper session timeout and logout functionality.
-
-6. **CORS Configuration**: Configure CORS properly to allow only trusted frontend origins.
+All success responses typically include a `data` field or direct payload with relevant information.
