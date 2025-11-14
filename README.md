@@ -7,6 +7,10 @@ A comprehensive exam supervision management system built with NestJS, designed t
 - **Role-Based Access Control (RBAC)**: Three user roles - Supervisor/Volunteer, Building Manager, and Exam Director
 - **External Authorization Service Integration**: Secure authentication with external auth service
 - **2FA Support**: Google Authenticator (TOTP) integration
+- **Data Synchronization**: Automated daily sync with external exam management system
+  - Exam halls and rooms (daily at 2 AM)
+  - Room participants for 3 days ahead (daily at 3 AM)
+  - Manual trigger endpoints for on-demand synchronization
 - **Real-Time Monitoring**: WebSocket-based real-time exam monitoring
 - **Assignment Management**: Complete workflow for supervisor assignments
 - **Attendance Tracking**: Mark and track participant attendance
@@ -69,6 +73,8 @@ Key configuration variables in `.env`:
 - `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`: Database configuration
 - `AUTH_SERVICE_URL`: External authorization service URL
 - `AUTH_SERVICE_API_KEY`: API key for authorization service
+- `EXTERNAL_HALL_API_URL`: External exam management system URL for synchronization
+- `EXTERNAL_HALL_API_TOKEN`: JWT token for external hall API
 - `JWT_SECRET`: JWT signing secret
 - `SMTP_*`: Email configuration for notifications
 
@@ -77,6 +83,14 @@ See `.env.example` for complete list.
 ### External Authorization Service
 
 This system integrates with an external authorization service for user authentication and authorization. See [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) for detailed API documentation.
+
+### Data Synchronization
+
+The system synchronizes data from an external exam management system on a daily schedule:
+- **Exam Halls & Rooms**: Synced daily at 2:00 AM
+- **Room Participants**: Synced daily at 3:00 AM for 3 days ahead (today, tomorrow, day after tomorrow)
+
+Manual sync triggers are also available through the API. See [DATA_SYNCHRONIZATION_STRATEGY.md](./DATA_SYNCHRONIZATION_STRATEGY.md) for detailed synchronization architecture and implementation.
 
 ## Running the Application
 
@@ -109,17 +123,19 @@ http://localhost:3000/api/docs
 The system uses the following main entities:
 
 - **User**: User profiles linked to external auth service
-- **Building**: Exam buildings
+- **Building**: Exam buildings (synced from external system)
 - **Hall**: Halls within buildings
-- **Room**: Rooms within halls
+- **Room**: Rooms within halls (synced from external system)
 - **Exam**: Exam sessions
 - **Assignment**: Supervisor assignments to rooms
 - **Attendance**: Participant attendance records
+- **Participant**: Synced room participants from external system
 - **Violation**: Rule violation reports
 - **Feedback**: Supervisor and manager feedback
 - **Notification**: System notifications
 - **Document**: Uploaded documents
 - **AuditLog**: Complete audit trail
+- **SyncLog**: Synchronization history and status tracking
 
 ## User Roles & Permissions
 
@@ -152,6 +168,11 @@ The system uses the following main entities:
 ```
 src/
 ├── entities/          # TypeORM entities
+├── sync/             # Data synchronization module
+│   ├── external-hall-api.service.ts
+│   ├── sync.service.ts
+│   ├── sync.controller.ts
+│   └── sync.module.ts
 ├── config/           # Configuration files
 ├── common/           # Shared utilities, guards, decorators
 ├── modules/          # Feature modules (to be implemented)

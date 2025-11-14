@@ -5,7 +5,8 @@ Base URL: `/api`
 ## Table of Contents
 1. [MQM App Authentication](#mqm-app-authentication)
 2. [User Management](#user-management)
-3. [Error Codes Reference](#error-codes-reference)
+3. [Data Synchronization](#data-synchronization)
+4. [Error Codes Reference](#error-codes-reference)
 
 ---
 
@@ -579,6 +580,166 @@ Authorization: Bearer <refresh_token>
 - The old refresh token will remain active
 - Use this endpoint before the access token expires to maintain user session
 - The refresh token has a longer lifetime (default: 240h / 10 days)
+
+---
+
+## Data Synchronization
+
+Base path: `/api/v1/sync`
+
+### 12. Sync Exam Halls (Manual)
+**Endpoint:** `POST /api/v1/sync/exam-halls`
+
+**Description:** Manually triggers synchronization of exam halls and rooms from the external exam management system.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body:** None
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Exam halls sync completed",
+  "data": {
+    "id": "string (uuid)",
+    "syncType": "exam_halls",
+    "status": "completed",
+    "startedAt": "string (ISO date)",
+    "completedAt": "string (ISO date)",
+    "recordsProcessed": "number",
+    "recordsCreated": "number",
+    "recordsUpdated": "number"
+  }
+}
+```
+
+**Error Response (500):**
+```json
+{
+  "success": false,
+  "message": "Sync failed",
+  "error": "string"
+}
+```
+
+---
+
+### 13. Sync Participants for Date (Manual)
+**Endpoint:** `POST /api/v1/sync/participants/:date`
+
+**Description:** Manually triggers synchronization of room participants for a specific exam date.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Parameters:**
+- `date` (path parameter): Exam date in YYYY-MM-DD format
+
+**Example:**
+```
+POST /api/v1/sync/participants/2025-01-15
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Participants sync for 2025-01-15 completed",
+  "data": {
+    "id": "string (uuid)",
+    "syncType": "participants",
+    "status": "completed",
+    "startedAt": "string (ISO date)",
+    "completedAt": "string (ISO date)",
+    "recordsCreated": "number",
+    "recordsUpdated": "number",
+    "metadata": {
+      "examDate": "2025-01-15"
+    }
+  }
+}
+```
+
+---
+
+### 14. Sync Participants Next 3 Days (Manual)
+**Endpoint:** `POST /api/v1/sync/participants/next-3-days`
+
+**Description:** Manually triggers synchronization of room participants for the next 3 days (today, tomorrow, and day after tomorrow).
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body:** None
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "message": "Participants sync for next 3 days initiated"
+}
+```
+
+---
+
+### 15. Get Sync Status
+**Endpoint:** `GET /api/v1/sync/status`
+
+**Description:** Retrieves the status of the most recent synchronization operations.
+
+**Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Success Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "examHalls": {
+      "id": "string (uuid)",
+      "syncType": "exam_halls",
+      "status": "completed",
+      "startedAt": "string (ISO date)",
+      "completedAt": "string (ISO date)",
+      "recordsProcessed": "number",
+      "recordsCreated": "number",
+      "recordsUpdated": "number",
+      "errorMessage": "string (null if successful)"
+    },
+    "participants": {
+      "id": "string (uuid)",
+      "syncType": "participants",
+      "status": "completed",
+      "startedAt": "string (ISO date)",
+      "completedAt": "string (ISO date)",
+      "recordsCreated": "number",
+      "recordsUpdated": "number",
+      "metadata": {
+        "examDate": "string"
+      }
+    }
+  }
+}
+```
+
+**Sync Status Values:**
+- `in_progress` - Synchronization is currently running
+- `completed` - Synchronization completed successfully
+- `failed` - Synchronization failed (check errorMessage for details)
+
+**Automated Sync Schedule:**
+- **2:00 AM daily** - Exam halls and rooms synchronization
+- **3:00 AM daily** - Room participants synchronization for next 3 days (today, tomorrow, day after tomorrow)
 
 ---
 
