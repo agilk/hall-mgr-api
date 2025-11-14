@@ -6,6 +6,18 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SyncModule } from './sync/sync.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { UsersModule } from './modules/users/users.module';
+import { BuildingsModule } from './modules/buildings/buildings.module';
+import { HallsModule } from './modules/halls/halls.module';
+import { RoomsModule } from './modules/rooms/rooms.module';
+import { ExamsModule } from './modules/exams/exams.module';
+import { AssignmentsModule } from './modules/assignments/assignments.module';
+import { AttendanceModule } from './modules/attendance/attendance.module';
+import { ViolationsModule } from './modules/violations/violations.module';
+import { FeedbackModule } from './modules/feedback/feedback.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggerService } from './common/services/logger.service';
@@ -36,6 +48,20 @@ import { LoggerService } from './common/services/logger.service';
     // Feature modules
     AuthModule,
     SyncModule,
+
+    // Core modules
+    UsersModule,
+    BuildingsModule,
+    HallsModule,
+    RoomsModule,
+    ExamsModule,
+    AssignmentsModule,
+    AttendanceModule,
+    ViolationsModule,
+    FeedbackModule,
+    NotificationsModule,
+    DocumentsModule,
+    AuditLogsModule,
   ],
   controllers: [AppController],
   providers: [
