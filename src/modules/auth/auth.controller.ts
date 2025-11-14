@@ -14,6 +14,7 @@ import { RegisterDto } from './dto/register.dto';
 import { Verify2FADto } from './dto/verify-2fa.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 import { ValidationPipe } from '../../common/pipes/validation.pipe';
 
 @Controller('api/v1/auth')
@@ -21,6 +22,7 @@ import { ValidationPipe } from '../../common/pipes/validation.pipe';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
     const user = await this.authService.register(registerDto);
@@ -31,6 +33,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     const result: any = await this.authService.login(loginDto);
@@ -51,6 +54,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('refresh')
   async refreshToken(@Headers('authorization') authHeader: string) {
     if (!authHeader) {
@@ -79,6 +83,7 @@ export class AuthController {
     };
   }
 
+  @Public()
   @Post('2fa/verify')
   async verify2FA(
     @Body() verify2FADto: Verify2FADto,

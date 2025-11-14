@@ -66,14 +66,69 @@ src/sync/sync.controller.ts
 src/sync/sync.module.ts
 ```
 
-### ⏳ Pending Features
+#### 3. Authentication & Authorization ✅ FULLY IMPLEMENTED
+**Status**: Production-ready
 
-#### Authentication & Authorization
-- [ ] Auth module implementation
-- [ ] JWT strategy and guards
-- [ ] Integration with external auth service
-- [ ] 2FA implementation with Speakeasy
-- [ ] Token refresh mechanism
+The system now includes complete authentication and authorization:
+
+**Implementation Details:**
+- **Auth Module:**
+  - JWT-based authentication with Passport
+  - Token refresh mechanism
+  - 2FA (Two-Factor Authentication) with Speakeasy
+  - QR code generation for 2FA setup
+  - Global JWT guard with @Public decorator support
+
+- **Security Features:**
+  - Password hashing with bcrypt
+  - JWT access tokens (configurable lifetime, default: 30m)
+  - JWT refresh tokens (configurable lifetime, default: 240h)
+  - 2FA with TOTP (Time-based One-Time Password)
+  - Role-based access control (RBAC) infrastructure
+
+- **API Endpoints:**
+  - `POST /api/v1/auth/register` - User registration
+  - `POST /api/v1/auth/login` - User login (with 2FA support)
+  - `POST /api/v1/auth/refresh` - Refresh access token
+  - `POST /api/v1/auth/logout` - Logout (client-side)
+  - `POST /api/v1/auth/2fa/setup` - Setup 2FA (returns QR code)
+  - `POST /api/v1/auth/2fa/verify` - Verify 2FA code
+  - `POST /api/v1/auth/2fa/disable` - Disable 2FA
+  - `GET /api/v1/auth/me` - Get current user profile
+
+- **Guards & Decorators:**
+  - `JwtAuthGuard` - Global JWT authentication guard
+  - `RolesGuard` - Role-based authorization guard
+  - `@Public()` - Mark endpoints as public (skip auth)
+  - `@Roles()` - Require specific roles
+  - `@CurrentUser()` - Inject current user into controller
+
+- **Configuration:**
+```bash
+# Environment variables required
+JWT_SECRET=your-secret-key-change-this-in-production
+ACCESS_TOKEN_LIFETIME=30m
+REFRESH_TOKEN_LIFETIME=240h
+APP_NAME=Exam Supervision System
+```
+
+**Files:**
+```
+src/modules/auth/auth.module.ts
+src/modules/auth/auth.service.ts
+src/modules/auth/auth.controller.ts
+src/modules/auth/strategies/jwt.strategy.ts
+src/modules/auth/guards/jwt-auth.guard.ts
+src/modules/auth/guards/roles.guard.ts
+src/modules/auth/dto/login.dto.ts
+src/modules/auth/dto/register.dto.ts
+src/modules/auth/dto/verify-2fa.dto.ts
+src/common/decorators/current-user.decorator.ts
+src/common/decorators/roles.decorator.ts
+src/common/decorators/public.decorator.ts
+```
+
+### ⏳ Pending Features
 
 #### Core Feature Modules
 - [ ] Users module
@@ -192,6 +247,37 @@ npm run migration:run
 ### Latest Update (Current Session)
 **Date**: 2025-11-14
 
+**Implemented: Authentication & Authorization Module (Phase 1, Week 2)**
+
+Completed the full authentication and authorization system:
+- Implemented JWT-based authentication with Passport
+- Added token refresh mechanism
+- Integrated 2FA (Two-Factor Authentication) with Speakeasy
+- Created QR code generation for 2FA setup
+- Added global JWT guard with @Public decorator support
+- Implemented role-based access control infrastructure
+
+**Changes:**
+```
+Modified:
+- src/app.module.ts (added global JWT guard)
+- src/app.controller.ts (added @Public decorator)
+- src/modules/auth/guards/jwt-auth.guard.ts (enhanced with @Public support)
+- src/modules/auth/auth.controller.ts (added @Public to public endpoints)
+
+Created:
+- src/common/decorators/public.decorator.ts
+
+Documentation Updated:
+- CLAUDE.md (marked authentication as completed)
+```
+
+**Commits:**
+- (Pending) Complete Phase 1, Week 2: Authentication & Authorization Module
+
+### Previous Update
+**Date**: 2025-11-14
+
 **Implemented: Daily Data Synchronization**
 
 Added complete data synchronization system for external exam management integration:
@@ -201,47 +287,12 @@ Added complete data synchronization system for external exam management integrat
 - Created SyncService with automated scheduling
 - Added manual trigger endpoints
 - Configured daily sync jobs (2 AM for halls/rooms, 3 AM for participants)
-- Updated all documentation
-
-**Changes:**
-```
-Modified:
-- src/entities/building.entity.ts (added sync fields)
-- src/entities/room.entity.ts (added sync fields)
-- src/entities/index.ts (exports)
-- src/app.module.ts (added SyncModule)
-- .env.example (added external hall API config)
-- package.json (added @nestjs/schedule, @nestjs/axios)
-
-Created:
-- src/entities/participant.entity.ts
-- src/entities/sync-log.entity.ts
-- src/sync/external-hall-api.service.ts
-- src/sync/sync.service.ts
-- src/sync/sync.controller.ts
-- src/sync/sync.module.ts
-
-Documentation Updated:
-- README.md
-- API_DOCUMENTATION.md
-- DATA_SYNCHRONIZATION_STRATEGY.md
-- IMPLEMENTATION_ROADMAP.md
-```
-
-**Commits:**
-- Implemented daily synchronization for halls, rooms, and room-participants
 
 ## Next Steps
 
 ### Immediate Priorities
 
-1. **Authentication Module** (High Priority)
-   - Implement JWT authentication
-   - Integrate with external auth service
-   - Setup 2FA with Speakeasy
-   - Create auth guards and decorators
-
-2. **Core Modules** (High Priority)
+1. **Core Modules** (High Priority - Next Phase)
    - Users module with CRUD operations
    - Buildings/Halls/Rooms management
    - Exams module
