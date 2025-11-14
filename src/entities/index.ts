@@ -1,7 +1,7 @@
 export { User, UserRole, UserStatus } from './user.entity';
-export { Building } from './building.entity';
+export { Building, BuildingSyncStatus } from './building.entity';
 export { Hall } from './hall.entity';
-export { Room } from './room.entity';
+export { Room, RoomSyncStatus } from './room.entity';
 export { Exam, ExamStatus } from './exam.entity';
 export { Assignment, AssignmentStatus } from './assignment.entity';
 export { Attendance, AttendanceStatus } from './attendance.entity';
@@ -18,3 +18,5 @@ export {
   DocumentVisibility,
 } from './document.entity';
 export { AuditLog, AuditAction } from './audit-log.entity';
+export { Participant, ParticipantSyncStatus } from './participant.entity';
+export { SyncLog, SyncType, SyncStatus } from './sync-log.entity';
