@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { Exam } from './exam.entity';
 import { Room } from './room.entity';
@@ -18,6 +19,9 @@ export enum AttendanceStatus {
 }
 
 @Entity('attendances')
+@Index(['examId', 'roomId']) // Optimize queries by exam and room
+@Index(['participantName']) // Optimize search by participant name
+@Index(['status', 'examId']) // Optimize queries by status and exam
 export class Attendance {
   @PrimaryGeneratedColumn('uuid')
   id: string;

@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cron } from '@nestjs/schedule';
-import { Repository, DataSource } from 'typeorm';
+import { Repository, DataSource, EntityManager } from 'typeorm';
 import { ExternalHallApiService } from './external-hall-api.service';
 import {
   Building,
@@ -14,6 +14,7 @@ import {
   SyncType,
   SyncStatus,
 } from '../entities';
+import { TransactionUtil } from '../common/utils/transaction.util';
 
 @Injectable()
 export class SyncService {
@@ -52,64 +53,62 @@ export class SyncService {
     });
     await this.syncLogRepository.save(syncLog);
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
     try {
       // Fetch data from external API
       const externalHalls = await this.externalHallApi.getExamHalls();
 
-      let created = 0;
-      let updated = 0;
+      // Use TransactionUtil for cleaner transaction management
+      const { created, updated } = await TransactionUtil.runInTransaction(
+        this.dataSource,
+        async (manager) => {
+          let created = 0;
+          let updated = 0;
 
-      for (const externalHall of externalHalls) {
-        // Find existing building by external ID
-        let building = await this.buildingRepository.findOne({
-          where: { externalId: externalHall.id },
-        });
+          for (const externalHall of externalHalls) {
+            // Find existing building by external ID
+            let building = await manager.findOne(Building, {
+              where: { externalId: externalHall.id },
+            });
 
-        if (!building) {
-          // Create new building
-          building = this.buildingRepository.create({
-            externalId: externalHall.id,
-            externalUid: externalHall.uid,
-            name: externalHall.name,
-            address: externalHall.address,
-            placeLimit: externalHall.placeLimit,
-            regionId: externalHall.regionId,
-            active: externalHall.isActive === 1,
-            lastSyncedAt: new Date(),
-            syncStatus: BuildingSyncStatus.SYNCED,
-          });
-          await queryRunner.manager.save(building);
-          created++;
-          this.logger.log(`Created building: ${externalHall.name}`);
-        } else {
-          // Update existing building
-          building.name = externalHall.name;
-          building.address = externalHall.address;
-          building.placeLimit = externalHall.placeLimit;
-          building.regionId = externalHall.regionId;
-          building.externalUid = externalHall.uid;
-          building.active = externalHall.isActive === 1;
-          building.lastSyncedAt = new Date();
-          building.syncStatus = BuildingSyncStatus.SYNCED;
-          building.syncError = null;
-          await queryRunner.manager.save(building);
-          updated++;
-          this.logger.log(`Updated building: ${externalHall.name}`);
-        }
+            if (!building) {
+              // Create new building
+              building = manager.create(Building, {
+                externalId: externalHall.id,
+                externalUid: externalHall.uid,
+                name: externalHall.name,
+                address: externalHall.address,
+                placeLimit: externalHall.placeLimit,
+                regionId: externalHall.regionId,
+                active: externalHall.isActive === 1,
+                lastSyncedAt: new Date(),
+                syncStatus: BuildingSyncStatus.SYNCED,
+              });
+              await manager.save(building);
+              created++;
+              this.logger.log(`Created building: ${externalHall.name}`);
+            } else {
+              // Update existing building
+              building.name = externalHall.name;
+              building.address = externalHall.address;
+              building.placeLimit = externalHall.placeLimit;
+              building.regionId = externalHall.regionId;
+              building.externalUid = externalHall.uid;
+              building.active = externalHall.isActive === 1;
+              building.lastSyncedAt = new Date();
+              building.syncStatus = BuildingSyncStatus.SYNCED;
+              building.syncError = null;
+              await manager.save(building);
+              updated++;
+              this.logger.log(`Updated building: ${externalHall.name}`);
+            }
 
-        // Sync nested rooms
-        await this.syncRoomsForHall(
-          building.id,
-          externalHall.rooms,
-          queryRunner,
-        );
-      }
+            // Sync nested rooms
+            await this.syncRoomsForHall(building.id, externalHall.rooms, manager);
+          }
 
-      await queryRunner.commitTransaction();
+          return { created, updated };
+        },
+      );
 
       // Update sync log
       syncLog.status = SyncStatus.COMPLETED;
@@ -124,8 +123,6 @@ export class SyncService {
       );
       return syncLog;
     } catch (error) {
-      await queryRunner.rollbackTransaction();
-
       syncLog.status = SyncStatus.FAILED;
       syncLog.completedAt = new Date();
       syncLog.errorMessage = error.message;
@@ -134,8 +131,6 @@ export class SyncService {
 
       this.logger.error('Exam halls sync failed', error.stack);
       throw error;
-    } finally {
-      await queryRunner.release();
     }
   }
 
@@ -145,19 +140,19 @@ export class SyncService {
   private async syncRoomsForHall(
     buildingId: string,
     externalRooms: any[],
-    queryRunner: any,
+    manager: EntityManager,
   ): Promise<void> {
     let created = 0;
     let updated = 0;
 
     for (const externalRoom of externalRooms) {
-      let room = await this.roomRepository.findOne({
+      let room = await manager.findOne(Room, {
         where: { externalId: externalRoom.id },
       });
 
       if (!room) {
         // Create new room
-        room = this.roomRepository.create({
+        room = manager.create(Room, {
           externalId: externalRoom.id,
           buildingId: buildingId,
           name: externalRoom.name,
@@ -167,7 +162,7 @@ export class SyncService {
           lastSyncedAt: new Date(),
           syncStatus: RoomSyncStatus.SYNCED,
         });
-        await queryRunner.manager.save(room);
+        await manager.save(room);
         created++;
       } else {
         // Update existing room
@@ -179,7 +174,7 @@ export class SyncService {
         room.lastSyncedAt = new Date();
         room.syncStatus = RoomSyncStatus.SYNCED;
         room.syncError = null;
-        await queryRunner.manager.save(room);
+        await manager.save(room);
         updated++;
       }
     }
@@ -223,70 +218,72 @@ export class SyncService {
     });
     await this.syncLogRepository.save(syncLog);
 
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction();
-
     try {
       const participantData =
         await this.externalHallApi.getRoomParticipants(examDate);
 
-      let created = 0;
-      let updated = 0;
+      // Use TransactionUtil for cleaner transaction management
+      const { created, updated } = await TransactionUtil.runInTransaction(
+        this.dataSource,
+        async (manager) => {
+          let created = 0;
+          let updated = 0;
 
-      for (const timeSlot of participantData) {
-        for (const participantRoom of timeSlot.participants) {
-          // Find the building and room
-          const building = await this.buildingRepository.findOne({
-            where: { externalId: participantRoom.hallId },
-          });
+          for (const timeSlot of participantData) {
+            for (const participantRoom of timeSlot.participants) {
+              // Find the building and room
+              const building = await manager.findOne(Building, {
+                where: { externalId: participantRoom.hallId },
+              });
 
-          const room = await this.roomRepository.findOne({
-            where: { externalId: participantRoom.roomId },
-          });
+              const room = await manager.findOne(Room, {
+                where: { externalId: participantRoom.roomId },
+              });
 
-          if (!building || !room) {
-            this.logger.warn(
-              `Building or room not found: hallId=${participantRoom.hallId}, roomId=${participantRoom.roomId}`,
-            );
-            continue;
+              if (!building || !room) {
+                this.logger.warn(
+                  `Building or room not found: hallId=${participantRoom.hallId}, roomId=${participantRoom.roomId}`,
+                );
+                continue;
+              }
+
+              // Find existing participant record
+              let participant = await manager.findOne(Participant, {
+                where: {
+                  buildingId: building.id,
+                  roomId: room.id,
+                  examDate: new Date(examDate),
+                  startTime: timeSlot.startTime,
+                },
+              });
+
+              if (!participant) {
+                // Create new participant record
+                participant = manager.create(Participant, {
+                  buildingId: building.id,
+                  roomId: room.id,
+                  examDate: new Date(examDate),
+                  startTime: timeSlot.startTime,
+                  participantCount: participantRoom.participantCount,
+                  lastSyncedAt: new Date(),
+                  syncStatus: ParticipantSyncStatus.SYNCED,
+                });
+                await manager.save(participant);
+                created++;
+              } else {
+                // Update existing participant record
+                participant.participantCount = participantRoom.participantCount;
+                participant.lastSyncedAt = new Date();
+                participant.syncStatus = ParticipantSyncStatus.SYNCED;
+                await manager.save(participant);
+                updated++;
+              }
+            }
           }
 
-          // Find existing participant record
-          let participant = await this.participantRepository.findOne({
-            where: {
-              buildingId: building.id,
-              roomId: room.id,
-              examDate: new Date(examDate),
-              startTime: timeSlot.startTime,
-            },
-          });
-
-          if (!participant) {
-            // Create new participant record
-            participant = this.participantRepository.create({
-              buildingId: building.id,
-              roomId: room.id,
-              examDate: new Date(examDate),
-              startTime: timeSlot.startTime,
-              participantCount: participantRoom.participantCount,
-              lastSyncedAt: new Date(),
-              syncStatus: ParticipantSyncStatus.SYNCED,
-            });
-            await queryRunner.manager.save(participant);
-            created++;
-          } else {
-            // Update existing participant record
-            participant.participantCount = participantRoom.participantCount;
-            participant.lastSyncedAt = new Date();
-            participant.syncStatus = ParticipantSyncStatus.SYNCED;
-            await queryRunner.manager.save(participant);
-            updated++;
-          }
-        }
-      }
-
-      await queryRunner.commitTransaction();
+          return { created, updated };
+        },
+      );
 
       syncLog.status = SyncStatus.COMPLETED;
       syncLog.completedAt = new Date();
@@ -299,8 +296,6 @@ export class SyncService {
       );
       return syncLog;
     } catch (error) {
-      await queryRunner.rollbackTransaction();
-
       syncLog.status = SyncStatus.FAILED;
       syncLog.completedAt = new Date();
       syncLog.errorMessage = error.message;
@@ -312,8 +307,6 @@ export class SyncService {
         error.stack,
       );
       throw error;
-    } finally {
-      await queryRunner.release();
     }
   }
 

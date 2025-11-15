@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -18,16 +19,21 @@ import { FeedbackModule } from './modules/feedback/feedback.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
+import { HealthModule } from './health/health.module';
+import { MonitoringModule } from './monitoring/monitoring.module';
+import { EmailModule } from './common/email/email.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggerService } from './common/services/logger.service';
+import { validate } from './config/env.validation';
 
 @Module({
   imports: [
-    // Configuration module
+    // Configuration module with validation
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate,
     }),
 
     // Database module
@@ -40,14 +46,28 @@ import { LoggerService } from './common/services/logger.service';
         password: process.env.DB_PASSWORD,
         database: process.env.DB_DATABASE,
         entities: [__dirname + '/**/*.entity{.ts,.js}'],
-        synchronize: process.env.NODE_ENV === 'development',
+        migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
+        // Only use synchronize in development - use migrations in production
+        synchronize: process.env.DB_SYNCHRONIZE === 'true' || process.env.NODE_ENV === 'development',
+        migrationsRun: process.env.NODE_ENV === 'production',
         logging: process.env.NODE_ENV === 'development',
       }),
     }),
 
+    // Rate limiting module
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // Time window in milliseconds (1 minute)
+        limit: 100, // Maximum number of requests per ttl (100 requests per minute)
+      },
+    ]),
+
     // Feature modules
     AuthModule,
     SyncModule,
+    HealthModule,
+    MonitoringModule,
+    EmailModule,
 
     // Core modules
     UsersModule,
@@ -70,6 +90,10 @@ import { LoggerService } from './common/services/logger.service';
     {
       provide: APP_FILTER,
       useClass: AllExceptionsFilter,
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
     },
     {
       provide: APP_GUARD,

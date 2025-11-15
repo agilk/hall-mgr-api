@@ -140,13 +140,19 @@ export class AttendanceService {
   }
 
   async markStatus(id: string, status: AttendanceStatus): Promise<Attendance> {
-    const attendance = await this.findOne(id);
-    attendance.status = status;
-    attendance.markedAt = new Date();
+    // Optimize: Use update() instead of loading the full entity
+    const result = await this.attendanceRepository.update(id, {
+      status,
+      markedAt: new Date(),
+    });
 
-    const updatedAttendance = await this.attendanceRepository.save(attendance);
-    this.logger.log(`Attendance ${id} status changed to: ${updatedAttendance.status}`);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Attendance with ID ${id} not found`);
+    }
 
-    return this.findOne(updatedAttendance.id);
+    this.logger.log(`Attendance ${id} status changed to: ${status}`);
+
+    // Only load once after update
+    return this.findOne(id);
   }
 }
