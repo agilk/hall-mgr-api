@@ -21,16 +21,19 @@ import { DocumentsModule } from './modules/documents/documents.module';
 import { AuditLogsModule } from './modules/audit-logs/audit-logs.module';
 import { HealthModule } from './health/health.module';
 import { MonitoringModule } from './monitoring/monitoring.module';
+import { EmailModule } from './common/email/email.module';
 import { JwtAuthGuard } from './modules/auth/guards/jwt-auth.guard';
 import { AllExceptionsFilter } from './common/filters/http-exception.filter';
 import { LoggerService } from './common/services/logger.service';
+import { validate } from './config/env.validation';
 
 @Module({
   imports: [
-    // Configuration module
+    // Configuration module with validation
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+      validate,
     }),
 
     // Database module
@@ -64,6 +67,7 @@ import { LoggerService } from './common/services/logger.service';
     SyncModule,
     HealthModule,
     MonitoringModule,
+    EmailModule,
 
     // Core modules
     UsersModule,
