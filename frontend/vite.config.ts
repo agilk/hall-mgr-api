@@ -4,6 +4,8 @@ import { resolve } from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Base path for GitHub Pages deployment
+  base: process.env.NODE_ENV === 'production' ? '/hall-mgr-api/' : '/',
   plugins: [vue()],
   resolve: {
     alias: {

@@ -62,6 +62,50 @@ Preview production build:
 npm run preview
 ```
 
+## GitHub Pages Deployment
+
+This frontend is configured for automatic deployment to GitHub Pages.
+
+### Live Demo
+
+Once deployed, the application will be available at:
+**https://agilk.github.io/hall-mgr-api/**
+
+### Automatic Deployment
+
+The application automatically deploys to GitHub Pages when:
+- Changes are pushed to the `main` or `master` branch in the `frontend/` directory
+- A manual deployment is triggered via GitHub Actions
+
+### Manual Deployment
+
+1. Go to your repository on GitHub
+2. Navigate to **Actions** tab
+3. Select the **Deploy Frontend to GitHub Pages** workflow
+4. Click **Run workflow**
+5. Choose the branch and click **Run workflow**
+
+### GitHub Pages Setup (One-Time)
+
+To enable GitHub Pages for this repository:
+
+1. Go to your repository **Settings**
+2. Navigate to **Pages** (under Code and automation)
+3. Under **Source**, select **GitHub Actions**
+4. Save the settings
+
+The next push to `main`/`master` will trigger the deployment automatically.
+
+### Local Testing
+
+To test the production build locally:
+```bash
+npm run build
+npm run preview
+```
+
+This simulates the GitHub Pages environment with the correct base path.
+
 ## Features
 
 ### 1. Naive UI Components
